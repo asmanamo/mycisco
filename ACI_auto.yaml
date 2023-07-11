@@ -1,0 +1,158 @@
+---
+- name: Configure ACI Fabric
+  hosts: aci_fabric
+  gather_facts: no
+
+  vars:
+    aci_username: admin
+    aci_password: secret
+    aci_url: https://aci-fabric.example.com/api
+    tenant_name: my-tenant
+    app_profile_name: my-app-profile
+    contract_name: my-contract
+    epg_name: my-epg
+    bd_name: my-bd
+    vlan_pool_name: my-vlan-pool
+    vlan_id: 100
+
+  tasks:
+    - name: Create Tenant
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni.json
+        content: |
+          fvTenant:
+            attributes:
+              name: "{{tenant_name}}"
+
+    - name: Create Application Profile
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/tn-{{tenant_name}}.json
+        content: |
+          fvAp:
+            attributes:
+              name: "{{app_profile_name}}"
+
+    - name: Create Contract
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/tn-{{tenant_name}}/brc-{{contract_name}}.json
+        content: |
+          vzBrCP:
+            attributes:
+              name: "{{contract_name}}"
+
+    - name: Create EPG
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/tn-{{tenant_name}}/ap-{{app_profile_name}}/epg-{{epg_name}}.json
+        content: |
+          fvAEPg:
+            attributes:
+              name: "{{epg_name}}"
+            children:
+              - fvRsBd:
+                  attributes:
+                    tnFvBDName: "{{bd_name}}"
+              - fvRsPathAtt:
+                  attributes:
+                    encap: "vlan-{{vlan_id}}"
+                    tDn: "topology/pod-1/paths-101/pathep-[eth1/1]"
+
+    - name: Create BD
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/tn-{{tenant_name}}/BD-{{bd_name}}.json
+        content: |
+          fvBD:
+            attributes:
+              name: "{{bd_name}}"
+            children:
+              - fvRsCtx:
+                  attributes:
+                    tnFvCtxName: "default"
+              - fvRsIgmpsn:
+                  attributes:
+                    tnIgmpSnoopPolName: "default"
+              - fvRsBdToEpRet:
+                  attributes:
+                    resolveAct: "resolve"
+                    tnFvEpRetPolName: "default"
+              - fvRsBdToEpRet:
+                  attributes:
+                    resolveAct: "resolve"
+                    tnFvEpRetPolName: "default"
+              - fvRsBdToEpRet:
+                  attributes:
+                    resolveAct: "resolve"
+                    tnFvEpRetPolName: "default"
+              - fvRsBdToEpRet:
+                  attributes:
+                    resolveAct: "resolve"
+                    tnFvEpRetPolName: "default"
+              - fvRsBDToOut:
+                  attributes:
+                    tnL3extOutName: "default"
+              - fvRsMacAging:
+                  attributes:
+                    tnFvMacAgingPolName: "default"
+
+    - name: Create VLAN Pool
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/infra/vlanns-{{vlan_pool_name}}.json
+        content: |
+          infraInfra:
+            children:
+              - infraFuncP:
+                  attributes:
+                    name: "{{vlan_pool_name}}"
+                  children:
+                    - infraRsVlanNs:
+                        attributes:
+                          tDn: "uni/infra/vlanns-default"
+
+    - name: Create VLAN Pool Block
+      aci_rest:
+        host: "{{aci_url}}"
+        username: "{{aci_username}}"
+        password: "{{aci_password}}"
+        method: post
+        path: /mo/uni/infra/vlanns-{{vlan_pool_name}}/vlan-{{vlan_id}}.json
+        content: |
+         infraInfra:
+            children:
+              - infraFuncP:
+                  attributes:
+                    name: "{{vlan_pool_name}}"
+                  children:
+                    - infraRsVlanNs:
+                        attributes:
+                          tDn: "uni/infra/vlanns-default"
+                    - infraStaticVlans:
+                        children:
+                          - infraRsVlanNs:
+                              attributes:
+                                tDn: "uni/infra/vlanns-{{vlan_pool_name}}"
+                            infraStaticVlan:
+                              attributes:
+                                name: "{{vlan_id}}"
